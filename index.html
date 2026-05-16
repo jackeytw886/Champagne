@@ -1,0 +1,2229 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>穿越跳石陣 v3.5 · WS2812 環形燈條</title>
+<style>
+  :root {
+    --bg-deep: #0a0b2e;
+    --bg-mid: #1a1556;
+    --neon-blue: #00d4ff;
+    --neon-red: #ff3366;
+    --neon-purple: #a855f7;
+    --neon-gold: #ffd700;
+    --neon-green: #00ff88;
+    --neon-pink: #ff66cc;
+    --neon-cyan: #00ffff;
+    --text-light: #fff8e7;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: 
+      radial-gradient(ellipse at 20% 10%, rgba(168, 85, 247, 0.25), transparent 50%),
+      radial-gradient(ellipse at 80% 90%, rgba(0, 212, 255, 0.2), transparent 50%),
+      linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-mid) 50%, var(--bg-deep) 100%);
+    min-height: 100vh;
+    font-family: 'Trebuchet MS', '微軟正黑體', sans-serif;
+    color: var(--text-light);
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, white, transparent),
+      radial-gradient(1px 1px at 60% 70%, white, transparent),
+      radial-gradient(2px 2px at 50% 50%, rgba(255,255,255,0.7), transparent),
+      radial-gradient(1px 1px at 80% 10%, white, transparent),
+      radial-gradient(1px 1px at 10% 90%, white, transparent),
+      radial-gradient(1px 1px at 90% 60%, rgba(255,255,255,0.8), transparent);
+    background-size: 200% 200%;
+    animation: twinkle 8s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+
+  .banner {
+    background: linear-gradient(135deg, #2d1b69 0%, #1e1450 100%);
+    border: 3px solid var(--neon-gold);
+    border-radius: 12px;
+    padding: 10px 20px;
+    margin-bottom: 14px;
+    text-align: center;
+    box-shadow: 
+      0 0 20px rgba(255, 215, 0, 0.4),
+      inset 0 0 30px rgba(168, 85, 247, 0.2);
+  }
+
+  .banner h1 {
+    font-size: clamp(1.2rem, 3.5vw, 2rem);
+    color: var(--neon-gold);
+    letter-spacing: 0.2em;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+    font-weight: 900;
+  }
+
+  .banner .subtitle {
+    color: var(--text-light);
+    font-size: clamp(0.8rem, 1.8vw, 1rem);
+    margin-top: 4px;
+    letter-spacing: 0.15em;
+  }
+
+  .game-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+
+  @media (max-width: 900px) {
+    .game-layout { grid-template-columns: 1fr; }
+  }
+
+  .info-column {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .panel {
+    background: linear-gradient(135deg, rgba(45, 27, 105, 0.85) 0%, rgba(30, 20, 80, 0.85) 100%);
+    border: 2px solid var(--neon-purple);
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: 
+      0 0 15px rgba(168, 85, 247, 0.4),
+      inset 0 0 20px rgba(168, 85, 247, 0.1);
+    backdrop-filter: blur(10px);
+  }
+
+  .panel h2 {
+    color: var(--neon-gold);
+    font-size: 1rem;
+    text-align: center;
+    padding: 6px;
+    margin-bottom: 10px;
+    background: rgba(255, 215, 0, 0.1);
+    border-radius: 6px;
+    border: 1px solid var(--neon-gold);
+    letter-spacing: 0.1em;
+  }
+
+  .hud-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .hud-cell {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--neon-blue);
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+  }
+
+  .hud-label {
+    font-size: 0.7rem;
+    color: var(--neon-blue);
+    letter-spacing: 0.1em;
+  }
+
+  .hud-value {
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--text-light);
+    text-shadow: 0 0 8px currentColor;
+    font-family: 'Courier New', monospace;
+    margin-top: 2px;
+  }
+
+  .hud-value.time { color: var(--neon-green); }
+  .hud-value.warn { color: var(--neon-gold); animation: pulse 0.5s infinite alternate; }
+  .hud-value.crit { color: var(--neon-red); animation: pulse 0.3s infinite alternate; }
+
+  @keyframes pulse {
+    from { opacity: 0.7; transform: scale(1); }
+    to { opacity: 1; transform: scale(1.05); }
+  }
+
+  .rule-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    margin-bottom: 6px;
+    background: rgba(255, 255, 255, 0.95);
+    color: #1a1556;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .rule-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #0a0a14;
+  }
+
+  .rule-dot.blue { border: 3px solid var(--neon-blue); box-shadow: 0 0 8px var(--neon-blue); }
+  .rule-dot.red { border: 3px solid var(--neon-red); box-shadow: 0 0 8px var(--neon-red); }
+  .rule-dot.gold { border: 3px solid var(--neon-gold); box-shadow: 0 0 8px var(--neon-gold); }
+
+  .path-card {
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+    border: 1px solid var(--neon-purple);
+    text-align: center;
+  }
+
+  .path-name {
+    color: var(--text-light);
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-top: 4px;
+  }
+
+  .path-desc {
+    font-size: 0.8rem;
+    margin-top: 4px;
+    opacity: 0.85;
+    line-height: 1.4;
+  }
+
+  .subtitle-bar {
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 8px;
+    border-left: 4px solid var(--neon-pink);
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s;
+  }
+
+  .subtitle-bar.speaking {
+    border-left-color: var(--neon-green);
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+  }
+
+  .subtitle-icon {
+    font-size: 1.4rem;
+    flex-shrink: 0;
+  }
+
+  .subtitle-bar.speaking .subtitle-icon {
+    animation: speakerPulse 0.5s infinite alternate;
+  }
+
+  @keyframes speakerPulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.2); }
+  }
+
+  .subtitle-text {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    flex: 1;
+    line-height: 1.4;
+  }
+
+  .effect-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .effect-btn {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .effect-btn:hover {
+    background: rgba(0, 255, 255, 0.2);
+    box-shadow: 0 0 12px rgba(0, 255, 255, 0.5);
+    transform: translateY(-1px);
+  }
+
+  .arena {
+    background: 
+      radial-gradient(ellipse at center, #3a2a1a 0%, #2a1d12 60%, #1a1208 100%);
+    border: 3px solid var(--neon-purple);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 
+      0 0 30px rgba(168, 85, 247, 0.5),
+      inset 0 0 40px rgba(0, 0, 0, 0.5);
+    position: relative;
+    overflow: hidden;
+    min-height: 600px;
+  }
+
+  .arena::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 10% 20%, rgba(139, 69, 19, 0.3) 1px, transparent 2px),
+      radial-gradient(circle at 30% 60%, rgba(160, 82, 45, 0.3) 1px, transparent 2px),
+      radial-gradient(circle at 70% 30%, rgba(139, 69, 19, 0.3) 1px, transparent 2px),
+      radial-gradient(circle at 80% 80%, rgba(160, 82, 45, 0.3) 1px, transparent 2px),
+      radial-gradient(circle at 50% 50%, rgba(101, 67, 33, 0.3) 1px, transparent 2px);
+    background-size: 50px 50px;
+    pointer-events: none;
+  }
+
+  .lane-label {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding: 8px;
+    margin-bottom: 8px;
+    background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.2), transparent);
+    color: var(--neon-gold);
+    font-weight: 800;
+    letter-spacing: 0.3em;
+    font-size: 0.9rem;
+    border-top: 1px dashed var(--neon-gold);
+    border-bottom: 1px dashed var(--neon-gold);
+  }
+
+  .lane-label.finish {
+    margin-top: 8px;
+    margin-bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.2), transparent);
+    color: var(--neon-green);
+    border-color: var(--neon-green);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(10, 1fr);
+    gap: clamp(6px, 1vw, 10px);
+    aspect-ratio: 3 / 10;
+    max-height: 70vh;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+    padding: 4px;
+  }
+
+  /* ============================================================
+     STONE: WS2812 ring LED simulation
+     Center is ALWAYS black. Only border + box-shadow lights up.
+     Color is driven by inline style: border-color + box-shadow
+  ============================================================ */
+  .stone {
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    position: relative;
+    background: #050510;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    /* Default: dim purple idle */
+    border: 4px solid rgba(120, 80, 180, 0.5);
+    box-shadow:
+      0 0 6px rgba(120, 80, 180, 0.4),
+      0 0 12px rgba(120, 80, 180, 0.2),
+      inset 0 0 10px rgba(0, 0, 0, 0.9);
+    transition: border-color 0.15s, box-shadow 0.2s, transform 0.1s;
+  }
+
+  .stone.pop {
+    animation: stonePop 0.5s ease-out;
+  }
+
+  @keyframes stonePop {
+    0% { transform: scale(0.85); }
+    50% { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+
+  /* Overlay & UI */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .overlay.show { opacity: 1; }
+
+  .overlay .big-text {
+    font-size: clamp(2rem, 7vw, 5rem);
+    font-weight: 900;
+    color: var(--neon-gold);
+    text-shadow: 0 0 20px var(--neon-gold), 0 0 40px rgba(255, 215, 0, 0.6);
+    font-family: 'Courier New', monospace;
+    background: rgba(0, 0, 0, 0.65);
+    padding: 18px 36px;
+    border-radius: 20px;
+    border: 3px solid var(--neon-gold);
+    animation: bigTextPop 0.6s ease-out;
+  }
+
+  @keyframes bigTextPop {
+    0% { transform: scale(0.3); opacity: 0; }
+    50% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .voice-bubble {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-30px);
+    background: linear-gradient(135deg, var(--neon-pink), var(--neon-purple));
+    color: white;
+    padding: 10px 20px;
+    border-radius: 30px;
+    border: 2px solid var(--neon-gold);
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.8);
+    font-size: clamp(0.85rem, 1.8vw, 1.1rem);
+    font-weight: 700;
+    z-index: 11;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s, transform 0.4s;
+    max-width: 90%;
+    text-align: center;
+  }
+
+  .voice-bubble.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 10px 24px;
+    font-size: 1rem;
+    font-weight: 800;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    font-family: inherit;
+  }
+
+  .btn-start {
+    background: linear-gradient(135deg, var(--neon-green) 0%, #00cc66 100%);
+    color: #003322;
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
+  }
+
+  .btn-start:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(0, 255, 136, 0.9);
+  }
+
+  .btn-reset {
+    background: linear-gradient(135deg, var(--neon-gold) 0%, #ffaa00 100%);
+    color: #2a1d12;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+  }
+
+  .btn-reset:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.9);
+  }
+
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .modal-bg {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 11, 46, 0.92);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s;
+    backdrop-filter: blur(8px);
+  }
+
+  .modal-bg.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .modal {
+    background: linear-gradient(135deg, #2d1b69 0%, #1e1450 100%);
+    border: 4px solid var(--neon-gold);
+    border-radius: 20px;
+    padding: 30px 40px;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(255, 215, 0, 0.6);
+    max-width: 480px;
+    transform: scale(0.7);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .modal-bg.show .modal { transform: scale(1); }
+
+  .modal h2 {
+    font-size: 2rem;
+    color: var(--neon-gold);
+    margin-bottom: 12px;
+    text-shadow: 0 0 15px var(--neon-gold);
+  }
+
+  .modal .trophy {
+    font-size: 4.5rem;
+    margin-bottom: 12px;
+    animation: trophyBounce 1.5s ease-in-out infinite;
+  }
+
+  @keyframes trophyBounce {
+    0%, 100% { transform: translateY(0) rotate(-5deg); }
+    50% { transform: translateY(-10px) rotate(5deg); }
+  }
+
+  .modal p {
+    color: var(--text-light);
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+
+  .modal .stat-line {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+    color: var(--text-light);
+    font-size: 0.95rem;
+  }
+
+  .modal .stat-line strong { color: var(--neon-gold); }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="banner">
+    <h1>穿越跳石陣 v3.5</h1>
+    <div class="subtitle">WS2812 環形燈條 · 8 種迴路 · 20 秒進度提示</div>
+  </div>
+
+  <div class="game-layout">
+    <div class="info-column">
+      <div class="panel">
+        <h2>挑戰資訊</h2>
+        <div class="hud-grid">
+          <div class="hud-cell">
+            <div class="hud-label">剩餘時間</div>
+            <div class="hud-value time" id="timeDisplay">1:30</div>
+          </div>
+          <div class="hud-cell">
+            <div class="hud-label">進度</div>
+            <div class="hud-value" id="progressDisplay">0/0</div>
+          </div>
+          <div class="hud-cell">
+            <div class="hud-label">失誤</div>
+            <div class="hud-value" id="errorDisplay" style="color: #ff3366">0</div>
+          </div>
+          <div class="hud-cell">
+            <div class="hud-label">狀態</div>
+            <div class="hud-value" id="stateDisplay" style="font-size: 0.85rem; color: #a855f7">待機</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>語音播報</h2>
+        <div class="subtitle-bar" id="subtitleBar">
+          <div class="subtitle-icon" id="subtitleIcon">💬</div>
+          <div class="subtitle-text" id="subtitleText">點擊「開始遊戲」啟動語音</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>遊戲規則</h2>
+        <div class="rule-item">
+          <div class="rule-dot blue"></div>
+          <span>只能踩<strong style="color:#0099cc">藍色光圈</strong></span>
+        </div>
+        <div class="rule-item">
+          <div class="rule-dot gold"></div>
+          <span>踩過變<strong style="color:#cc9900">金黃色</strong>表示成功</span>
+        </div>
+        <div class="rule-item">
+          <div class="rule-dot red"></div>
+          <span>不能踩<strong style="color:#cc0033">紅色光圈</strong></span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>本回路徑</h2>
+        <div class="path-card">
+          <div class="path-name" id="pathName">— 待開始 —</div>
+          <div class="path-desc" id="pathDesc">點擊開始遊戲</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>🎨 特效展示</h2>
+        <div class="effect-grid">
+          <button class="effect-btn" onclick="demoEffect('chaos')">🌀 隨機亂跑</button>
+          <button class="effect-btn" onclick="demoEffect('whirlpool')">🌪️ 旋風</button>
+          <button class="effect-btn" onclick="demoEffect('lightning')">⚡ 閃電</button>
+          <button class="effect-btn" onclick="demoEffect('meteor')">🌟 流星雨</button>
+          <button class="effect-btn" onclick="demoEffect('fire')">🔥 火焰</button>
+          <button class="effect-btn" onclick="demoEffect('fireworks')">🎆 煙火</button>
+          <button class="effect-btn" onclick="demoEffect('crown')">👑 皇冠</button>
+          <button class="effect-btn" onclick="demoEffect('trophy')">🏆 獎盃</button>
+          <button class="effect-btn" onclick="demoEffect('heart')">❤️ 愛心</button>
+          <button class="effect-btn" onclick="demoEffect('star')">⭐ 星星</button>
+          <button class="effect-btn" onclick="demoEffect('wave')">🌊 波浪</button>
+          <button class="effect-btn" onclick="demoEffect('rainbow')">🌈 彩虹</button>
+          <button class="effect-btn" onclick="demoEffect('chase')">💨 追逐</button>
+          <button class="effect-btn" onclick="demoEffect('snake')">🐍 貪食蛇</button>
+          <button class="effect-btn" onclick="demoEffect('breath')">🫧 多色呼吸</button>
+          <button class="effect-btn" onclick="demoEffect('matrix')">🟢 駭客矩陣</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="arena">
+      <div class="lane-label">▼ 起 點 ▼</div>
+      <div class="grid" id="grid"></div>
+      <div class="lane-label finish">▲ 終 點 ▲</div>
+
+      <div class="overlay" id="overlay">
+        <div class="big-text" id="bigText"></div>
+      </div>
+
+      <div class="voice-bubble" id="voiceBubble"></div>
+
+      <div class="controls">
+        <button class="btn btn-start" id="btnStart">🚀 開始遊戲</button>
+        <button class="btn btn-reset" id="btnReset" disabled>🔄 重新開始</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <div class="trophy" id="modalTrophy">🏆</div>
+    <h2 id="modalTitle">挑戰結果</h2>
+    <p id="modalSubtitle"></p>
+    <div class="stat-line"><span>路徑長度</span><strong id="statPath">—</strong></div>
+    <div class="stat-line"><span>已踩跳石</span><strong id="statStepped">—</strong></div>
+    <div class="stat-line"><span>踩錯次數</span><strong id="statErrors">—</strong></div>
+    <div class="stat-line"><span>用時</span><strong id="statTime">—</strong></div>
+    <div class="stat-line" style="border-bottom: none;"><span>稱號</span><strong id="statTitle">—</strong></div>
+    <button class="btn btn-start" style="margin-top: 20px;" onclick="closeModal()">再來一回合</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   穿越跳石陣 v3.5 - 8 route loops + direct start + 20-second progress hints
+   
+   Fixes from v3:
+   1. Removed CSS custom property animations (don't work without 
+      @property registration). All effects now set border-color 
+      and box-shadow directly via JS for guaranteed compatibility.
+   2. Removed naming collision: clearAllStones() parameter renamed.
+   3. Removed inline-style animation override in onStoneClick.
+   4. Single render path: setStoneRing(r, c, color, intensity) is 
+      the ONLY way to change a stone's appearance.
+   5. Added flow/effect cancellation guards so reset, demo effects,
+      countdown, and result animations do not overlap.
+   6. Expanded PATH_THEMES to 8 route loops.
+   7. Removed the path-generation waiting animation; after countdown, announce the route and start immediately.
+   8. Added a progress reminder every 20 seconds during gameplay.
+============================================================ */
+
+const ROWS = 10;
+const COLS = 3;
+const TOTAL_TIME = 90;
+const WARN_60_AT = 30;
+const WARN_30_AT = 60;
+const WARN_10_AT = 80;
+const PROGRESS_HINT_INTERVAL = 20;
+
+// ============================================================
+// SpeechSynthesis
+// ============================================================
+let zhVoice = null;
+let speechEnabled = true;
+
+function loadVoices() {
+  if (!('speechSynthesis' in window)) return;
+  const voices = window.speechSynthesis.getVoices();
+  zhVoice = voices.find(v => v.lang === 'zh-TW') 
+         || voices.find(v => v.lang.startsWith('zh-CN'))
+         || voices.find(v => v.lang.startsWith('zh'))
+         || voices[0];
+}
+
+if ('speechSynthesis' in window) {
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+} else {
+  speechEnabled = false;
+}
+
+function speak(text, opts) {
+  opts = opts || {};
+  setSubtitle(text, true);
+  if (!speechEnabled || !('speechSynthesis' in window)) return;
+  if (opts.interrupt !== false) window.speechSynthesis.cancel();
+  
+  const utter = new SpeechSynthesisUtterance(text);
+  if (zhVoice) utter.voice = zhVoice;
+  utter.lang = 'zh-TW';
+  utter.rate = opts.rate || 1.1;
+  utter.pitch = opts.pitch || 1.0;
+  utter.volume = opts.volume || 1.0;
+  utter.onend = () => setSubtitle(text, false);
+  utter.onerror = () => setSubtitle(text, false);
+  try {
+    window.speechSynthesis.speak(utter);
+  } catch (e) {
+    console.warn('Speech failed:', e);
+  }
+}
+
+function setSubtitle(text, isSpeaking) {
+  const bar = document.getElementById('subtitleBar');
+  const txt = document.getElementById('subtitleText');
+  const icon = document.getElementById('subtitleIcon');
+  txt.textContent = text;
+  if (isSpeaking) {
+    bar.classList.add('speaking');
+    icon.textContent = '🔊';
+  } else {
+    bar.classList.remove('speaking');
+    icon.textContent = '💬';
+  }
+}
+
+// ============================================================
+// Audio Engine
+// ============================================================
+let AC = null;
+function ensureAC() {
+  if (!AC) {
+    try {
+      AC = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+      console.warn('AudioContext not supported');
+      return null;
+    }
+  }
+  if (AC.state === 'suspended') AC.resume();
+  return AC;
+}
+
+function playTone(type, freq, dur, vol, freqEnd) {
+  const ac = ensureAC();
+  if (!ac) return;
+  vol = vol || 0.25;
+  try {
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ac.currentTime);
+    if (freqEnd != null) {
+      osc.frequency.exponentialRampToValueAtTime(freqEnd, ac.currentTime + dur);
+    }
+    gain.gain.setValueAtTime(vol, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    osc.start();
+    osc.stop(ac.currentTime + dur);
+  } catch (e) { /* silent */ }
+}
+
+function playChord(freqs, dur, vol) {
+  freqs.forEach(f => playTone('triangle', f, dur, vol || 0.2));
+}
+
+const SFX = {
+  stepCorrect: function() {
+    playTone('sine', 880, 0.08, 0.25, 1320);
+    setTimeout(() => playTone('sine', 1320, 0.06, 0.15), 60);
+  },
+  stepWrong: function() { playTone('square', 220, 0.3, 0.3, 110); },
+  countdownBeep: function() { playTone('sine', 600, 0.12, 0.3); },
+  countdownFinal: function() {
+    playTone('sine', 1200, 0.25, 0.35);
+    setTimeout(() => playTone('sine', 1600, 0.2, 0.3), 100);
+  },
+  victory: function() {
+    setTimeout(() => playTone('triangle', 523, 0.15, 0.25), 0);
+    setTimeout(() => playTone('triangle', 659, 0.15, 0.25), 120);
+    setTimeout(() => playTone('triangle', 784, 0.15, 0.25), 240);
+    setTimeout(() => playChord([523, 659, 784, 1047], 0.6, 0.2), 360);
+  },
+  failure: function() {
+    setTimeout(() => playTone('sawtooth', 600, 0.2, 0.25), 0);
+    setTimeout(() => playTone('sawtooth', 500, 0.2, 0.25), 200);
+    setTimeout(() => playTone('sawtooth', 400, 0.4, 0.25), 400);
+  },
+  warn10: function() { playTone('square', 1000, 0.06, 0.25); },
+  timeUp: function() {
+    setTimeout(() => playTone('square', 200, 0.4, 0.3), 0);
+    setTimeout(() => playTone('square', 150, 0.6, 0.3), 200);
+  },
+  sparkle: function() {
+    playTone('sine', 1500, 0.05, 0.15);
+    setTimeout(() => playTone('sine', 2000, 0.05, 0.1), 30);
+  }
+};
+
+// ============================================================
+// Digit patterns (5 rows × 3 cols)
+// ============================================================
+const DIGIT_PATTERNS = {
+  '5': [[1,1,1],[1,0,0],[1,1,1],[0,0,1],[1,1,1]],
+  '4': [[1,0,1],[1,0,1],[1,1,1],[0,0,1],[0,0,1]],
+  '3': [[1,1,1],[0,0,1],[1,1,1],[0,0,1],[1,1,1]],
+  '2': [[1,1,1],[0,0,1],[1,1,1],[1,0,0],[1,1,1]],
+  '1': [[0,1,0],[1,1,0],[0,1,0],[0,1,0],[1,1,1]]
+};
+const DIGIT_START_ROW = 3;
+
+// ============================================================
+// Path Themes
+// ============================================================
+const PATH_THEMES = [
+  {
+    name: '銀河漫遊',
+    desc: '跟著銀河的軌跡，跳上閃亮的星光點。',
+    voice: '本回路徑是銀河漫遊，跟著星光蜿蜒前進！',
+    pattern: [[0,1,0],[0,1,0],[1,0,0],[1,0,0],[0,1,0],[0,0,1],[0,0,1],[0,1,0],[1,0,0],[1,0,0]]
+  },
+  {
+    name: '神龍擺尾',
+    desc: '左右擺動前進，節奏感強，適合考驗反應。',
+    voice: '本回路徑是神龍擺尾，左右擺動踩穩龍鱗！',
+    pattern: [[1,0,0],[0,1,0],[0,0,1],[0,1,0],[1,0,0],[0,1,0],[0,0,1],[0,1,0],[1,0,0],[0,1,0]]
+  },
+  {
+    name: '渡海尋寶',
+    desc: '像踩著浪頭前進，中段有連續平衡轉換。',
+    voice: '本回路徑是渡海尋寶，跳上藍色浪頭找寶藏！',
+    pattern: [[0,1,0],[1,0,0],[0,1,0],[0,0,1],[0,1,0],[0,1,0],[0,0,1],[0,1,0],[1,0,0],[0,1,0]]
+  },
+  {
+    name: '閃電快線',
+    desc: '兩格一組快速切換，節奏明確但速度壓力高。',
+    voice: '本回路徑是閃電快線，跟著閃電快速前進！',
+    pattern: [[1,0,0],[1,0,0],[0,1,0],[0,1,0],[0,0,1],[0,0,1],[0,1,0],[0,1,0],[1,0,0],[1,0,0]]
+  },
+  {
+    name: '森林小徑',
+    desc: '中線穩定為主，穿插左右閃避點，適合入門。',
+    voice: '本回路徑是森林小徑，跟著光點穿過樹林！',
+    pattern: [[0,1,0],[0,1,0],[1,0,0],[0,1,0],[0,1,0],[0,1,0],[0,0,1],[0,1,0],[0,1,0],[0,1,0]]
+  },
+  {
+    name: '月影折返',
+    desc: '左右折返幅度大，適合訓練側向移動與重心轉換。',
+    voice: '本回路徑是月影折返，注意左右切換，穩穩前進！',
+    pattern: [[1,0,0],[0,1,0],[1,0,0],[0,1,0],[0,0,1],[0,1,0],[0,0,1],[0,1,0],[1,0,0],[0,1,0]]
+  },
+  {
+    name: '雙峰攀登',
+    desc: '前段偏左、中段偏右、後段回中，像跨越兩座小山。',
+    voice: '本回路徑是雙峰攀登，先左後右，再回到中線！',
+    pattern: [[1,0,0],[0,1,0],[0,1,0],[0,0,1],[0,0,1],[0,1,0],[1,0,0],[0,1,0],[0,0,1],[0,1,0]]
+  },
+  {
+    name: '螢火蟲迴路',
+    desc: '路線忽左忽右但不連續跳太遠，適合親子挑戰。',
+    voice: '本回路徑是螢火蟲迴路，跟著螢光一步一步前進！',
+    pattern: [[0,0,1],[0,1,0],[0,1,0],[1,0,0],[0,1,0],[0,0,1],[0,1,0],[1,0,0],[0,1,0],[0,0,1]]
+  }
+];
+
+// ============================================================
+// Game State (renamed to GAME to avoid any param shadowing)
+// ============================================================
+const GAME = {
+  phase: 'idle',
+  path: [],
+  pathSet: new Set(),
+  steppedSet: new Set(),
+  redHits: new Set(),
+  errorCount: 0,
+  timeLeft: TOTAL_TIME,
+  timer: null,
+  startedAt: 0,
+  theme: null,
+  effectAnimId: null,
+  effectCancelResolve: null,
+  effectToken: 0,
+  flowId: 0,
+  redFlashTimer: null,   // For animating hit-red stones
+  lastProgressHintAt: 0  // Last elapsed second for the 20-second progress reminder
+};
+
+// ============================================================
+// DOM refs
+// ============================================================
+const gridEl = document.getElementById('grid');
+const overlayEl = document.getElementById('overlay');
+const bigTextEl = document.getElementById('bigText');
+const voiceBubble = document.getElementById('voiceBubble');
+const timeDisplay = document.getElementById('timeDisplay');
+const progressDisplay = document.getElementById('progressDisplay');
+const errorDisplay = document.getElementById('errorDisplay');
+const stateDisplay = document.getElementById('stateDisplay');
+const pathName = document.getElementById('pathName');
+const pathDesc = document.getElementById('pathDesc');
+const btnStart = document.getElementById('btnStart');
+const btnReset = document.getElementById('btnReset');
+
+// ============================================================
+// CORE: Stone ring rendering
+// Center stays black; we only modify border-color + box-shadow.
+// Color: any valid CSS color string
+// Intensity: 0 (off) ~ 2 (very bright). 1 = normal.
+// ============================================================
+const IDLE_COLOR = 'rgba(120, 80, 180, 0.5)';
+
+function setStoneRing(r, c, color, intensity) {
+  const stone = getStone(r, c);
+  if (!stone) return;
+  setStoneRingDirect(stone, color, intensity);
+}
+
+function setStoneRingDirect(stone, color, intensity) {
+  if (intensity == null) intensity = 1;
+  const glow1 = 12 * intensity;
+  const glow2 = 24 * intensity;
+  const glow3 = 36 * intensity;
+  stone.style.borderColor = color;
+  stone.style.boxShadow = 
+    '0 0 ' + glow1 + 'px ' + color + ', ' +
+    '0 0 ' + glow2 + 'px ' + color + ', ' +
+    '0 0 ' + glow3 + 'px ' + color + ', ' +
+    'inset 0 0 10px rgba(0, 0, 0, 0.9)';
+}
+
+function setStoneIdle(stone) {
+  stone.style.borderColor = '';
+  stone.style.boxShadow = '';
+}
+
+function clearAllStones() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const s = getStone(r, c);
+      setStoneIdle(s);
+      s.classList.remove('pop');
+      s.dataset.role = 'idle';
+    }
+  }
+}
+
+function buildGrid() {
+  gridEl.innerHTML = '';
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const stone = document.createElement('div');
+      stone.className = 'stone';
+      stone.dataset.r = r;
+      stone.dataset.c = c;
+      stone.dataset.role = 'idle';
+      stone.addEventListener('click', onStoneClick);
+      gridEl.appendChild(stone);
+    }
+  }
+}
+
+function getStone(r, c) {
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return null;
+  return gridEl.children[r * COLS + c];
+}
+
+// ============================================================
+// Animated state loop (for breathing colors)
+// One single rAF loop that handles "breathing" effects so they 
+// don't break when style.boxShadow is set directly.
+// ============================================================
+let breathingLoopId = null;
+
+function breathingLoop(now) {
+  // Apply gentle breathing for blue and gold stones
+  const t = now / 1000;
+  
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const stone = getStone(r, c);
+      const role = stone.dataset.role;
+      
+      if (role === 'blue') {
+        // Blue breathing 0.8 ~ 1.4
+        const intensity = 1.1 + Math.sin(t * Math.PI) * 0.3;
+        setStoneRingDirect(stone, '#00d4ff', intensity);
+      } else if (role === 'gold') {
+        // Gold breathing 1.1 ~ 1.6
+        const intensity = 1.35 + Math.sin(t * Math.PI * 1.3) * 0.25;
+        setStoneRingDirect(stone, '#ffd700', intensity);
+      } else if (role === 'hit-red') {
+        // Hit-red rapid flash
+        const flash = Math.sin(t * Math.PI * 6) > 0;
+        if (flash) {
+          setStoneRingDirect(stone, '#ff3366', 2);
+        } else {
+          setStoneRingDirect(stone, 'rgba(80, 0, 0, 0.5)', 0.3);
+        }
+      }
+      // red and fx are static; managed by effect functions directly
+    }
+  }
+  
+  breathingLoopId = requestAnimationFrame(breathingLoop);
+}
+
+function startBreathingLoop() {
+  if (breathingLoopId === null) {
+    breathingLoopId = requestAnimationFrame(breathingLoop);
+  }
+}
+
+// ============================================================
+// State setters (high-level, just set role; loop renders it)
+// ============================================================
+function setStoneRole(stone, role) {
+  stone.dataset.role = role;
+  // For static roles, paint immediately
+  if (role === 'idle') {
+    setStoneIdle(stone);
+  } else if (role === 'red') {
+    setStoneRingDirect(stone, '#ff3366', 1.2);
+  } else if (role === 'fx') {
+    // fx is painted by effect functions, do nothing here
+  }
+  // 'blue', 'gold', 'hit-red' are animated by breathingLoop
+}
+
+function stopOngoingEffect() {
+  if (GAME.effectAnimId) {
+    cancelAnimationFrame(GAME.effectAnimId);
+    GAME.effectAnimId = null;
+  }
+  if (GAME.effectCancelResolve) {
+    const cancelEffect = GAME.effectCancelResolve;
+    GAME.effectCancelResolve = null;
+    cancelEffect();
+  } else {
+    GAME.effectToken++;
+  }
+}
+
+function beginEffect(resolve) {
+  const token = ++GAME.effectToken;
+  GAME.effectCancelResolve = function() {
+    if (GAME.effectToken === token) GAME.effectToken++;
+    GAME.effectAnimId = null;
+    GAME.effectCancelResolve = null;
+    clearAllStones();
+    resolve('cancelled');
+  };
+  return token;
+}
+
+function finishEffect(resolve, token, shouldClear) {
+  if (!isEffectActive(token)) return;
+  GAME.effectAnimId = null;
+  GAME.effectCancelResolve = null;
+  if (shouldClear !== false) clearAllStones();
+  resolve('done');
+}
+
+function isEffectActive(token) {
+  return token === GAME.effectToken;
+}
+
+function newFlow() {
+  GAME.flowId++;
+  return GAME.flowId;
+}
+
+function isCurrentFlow(flowId) {
+  return flowId === GAME.flowId;
+}
+
+async function waitForFlow(ms, flowId) {
+  await sleep(ms);
+  return isCurrentFlow(flowId);
+}
+
+// ============================================================
+// Voice bubble
+// ============================================================
+let voiceTimeout = null;
+function showVoice(text, dur) {
+  dur = dur || 2400;
+  voiceBubble.textContent = '🔊 ' + text;
+  voiceBubble.classList.add('show');
+  clearTimeout(voiceTimeout);
+  voiceTimeout = setTimeout(() => voiceBubble.classList.remove('show'), dur);
+}
+
+function showOverlay(big) {
+  bigTextEl.textContent = big;
+  overlayEl.classList.add('show');
+  bigTextEl.style.animation = 'none';
+  void bigTextEl.offsetWidth;
+  bigTextEl.style.animation = '';
+}
+function hideOverlay() {
+  overlayEl.classList.remove('show');
+}
+
+function updatePathInfo() {
+  if (!GAME.theme) return;
+  pathName.textContent = GAME.theme.name;
+  pathDesc.textContent = GAME.theme.desc;
+}
+
+// ============================================================
+// Draw countdown digit
+// ============================================================
+function drawCountdownDigit(digit) {
+  const pattern = DIGIT_PATTERNS[digit];
+  if (!pattern) return;
+  
+  // Clear all to idle first
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const stone = getStone(r, c);
+      stone.dataset.role = 'idle';
+      setStoneIdle(stone);
+      stone.classList.remove('pop');
+    }
+  }
+  
+  // Light up digit cells
+  for (let dr = 0; dr < 5; dr++) {
+    for (let dc = 0; dc < 3; dc++) {
+      if (pattern[dr][dc] === 1) {
+        const stone = getStone(DIGIT_START_ROW + dr, dc);
+        if (stone) {
+          stone.dataset.role = 'fx';
+          setStoneRingDirect(stone, '#ffd700', 1.6);
+          // Pop animation
+          stone.classList.remove('pop');
+          void stone.offsetWidth;
+          stone.classList.add('pop');
+        }
+      }
+    }
+  }
+}
+
+// ============================================================
+// Path
+// ============================================================
+function generatePath() {
+  GAME.theme = PATH_THEMES[Math.floor(Math.random() * PATH_THEMES.length)];
+  GAME.path = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (GAME.theme.pattern[r][c] === 1) {
+        GAME.path.push({ r: r, c: c });
+      }
+    }
+  }
+  GAME.pathSet = new Set(GAME.path.map(p => p.r + ',' + p.c));
+}
+
+function paintPath() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const stone = getStone(r, c);
+      const key = r + ',' + c;
+      if (GAME.pathSet.has(key)) {
+        setStoneRole(stone, 'blue');
+      } else {
+        setStoneRole(stone, 'red');
+      }
+    }
+  }
+}
+
+// ============================================================
+// Effect Library
+// All effects set role='fx' and paint stones directly.
+// They return a Promise that resolves when done.
+// ============================================================
+
+function setAllRoleFx() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      getStone(r, c).dataset.role = 'fx';
+    }
+  }
+}
+
+function dimAllForFx() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const stone = getStone(r, c);
+      stone.dataset.role = 'fx';
+      setStoneRingDirect(stone, 'rgba(40, 30, 60, 0.3)', 0.2);
+    }
+  }
+}
+
+// E1: Chaos
+function fxChaos(duration) {
+  duration = duration || 5000;
+  setAllRoleFx();
+  return new Promise(resolve => {
+    const effectToken = beginEffect(resolve);
+    const start = performance.now();
+    const colors = ['#00d4ff', '#ff3366', '#ffd700', '#a855f7', '#00ff88', '#ff66cc', '#00ffff', '#ff9933'];
+    let lastTick = 0;
+    
+    function tick(now) {
+      if (!isEffectActive(effectToken)) return;
+      if (now - start > duration) {
+        finishEffect(resolve, effectToken);
+        return;
+      }
+      if (now - lastTick > 80) {
+        lastTick = now;
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            const stone = getStone(r, c);
+            if (Math.random() < 0.5) {
+              const col = colors[Math.floor(Math.random() * colors.length)];
+              setStoneRingDirect(stone, col, 0.8 + Math.random() * 0.8);
+            } else {
+              setStoneRingDirect(stone, 'rgba(40, 30, 60, 0.4)', 0.2);
+            }
+          }
+        }
+      }
+      GAME.effectAnimId = requestAnimationFrame(tick);
+    }
+    GAME.effectAnimId = requestAnimationFrame(tick);
+  });
+}
+
+// E2: Whirlpool
+function fxWhirlpool(duration) {
+  duration = duration || 4000;
+  setAllRoleFx();
+  return new Promise(resolve => {
+    const effectToken = beginEffect(resolve);
+    const start = performance.now();
+    const center = { r: 4.5, c: 1 };
+    
+    function tick(now) {
+      if (!isEffectActive(effectToken)) return;
+      const t = now - start;
+      if (t > duration) { finishEffect(resolve, effectToken);
+        return; }
+      
+      const angle = (t / 200) % (Math.PI * 2);
+      
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const stone = getStone(r, c);
+          const dr = r - center.r;
+          const dc = c - center.c;
+          const dist = Math.sqrt(dr * dr + dc * dc);
+          const stoneAngle = Math.atan2(dr, dc);
+          const phase = (stoneAngle - angle - dist * 0.5);
+          const brightness = Math.max(0, Math.sin(phase) * 0.5 + 0.5);
+          const hue = (dist * 30 + t / 30) % 360;
+          
+          if (brightness > 0.4) {
+            setStoneRingDirect(stone, 'hsl(' + hue + ', 100%, 60%)', brightness * 1.4);
+          } else {
+            setStoneRingDirect(stone, 'rgba(40, 30, 60, 0.3)', 0.2);
+          }
+        }
+      }
+      GAME.effectAnimId = requestAnimationFrame(tick);
+    }
+    GAME.effectAnimId = requestAnimationFrame(tick);
+  });
+}
+
+// E3: Lightning
+function fxLightning(duration) {
+  duration = duration || 4000;
+  setAllRoleFx();
+  return new Promise(resolve => {
+    const effectToken = beginEffect(resolve);
+    const start = performance.now();
+    let lastBolt = 0;
+    
+    function tick(now) {
+      if (!isEffectActive(effectToken)) return;
+      const t = now - start;
+      if (t > duration) { finishEffect(resolve, effectToken);
+        return; }
+      
+      // Dim all (each frame to fade old bolt)
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const stone = getStone(r, c);
+          setStoneRingDirect(stone, 'rgba(40, 30, 60, 0.3)', 0.2);
+        }
+      }
+      
+      // Fire a bolt every 200ms
+      if (now - lastBolt > 200) {
+        lastBolt = now;
+        let col = Math.floor(Math.random() * 3);
+        for (let r = 0; r < ROWS; r++) {
+          setStoneRingDirect(getStone(r, col), '#ffffff', 2);
+          if (Math.random() < 0.4) {
+            col = Math.max(0, Math.min(2, col + (Math.random() < 0.5 ? -1 : 1)));
+          }
+        }
+        SFX.sparkle();
+      }
+      GAME.effectAnimId = requestAnimationFrame(tick);
+    }
+    GAME.effectAnimId = requestAnimationFrame(tick);
+  });
+}
+
+// E4: Meteor
+function fxMeteor(duration) {
+  duration = duration || 5000;
+  setAllRoleFx();
+  return new Promise(resolve => {
+    const effectToken = beginEffect(resolve);
+    const start = performance.now();
+    let meteors = [];
+    let lastSpawn = 0;
+    
+    function tick(now) {
+      if (!isEffectActive(effectToken)) return;
+      const t = now - start;
+      if (t > duration) { finishEffect(resolve, effectToken);
+        return; }
+      
+      // Dim
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          setStoneRingDirect(getStone(r, c), 'rgba(20, 20, 40, 0.3)', 0.15);
+        }
+      }
+      
+      if (now - lastSpawn > 250) {
+        lastSpawn = now;
+        meteors.push({ r: 0, c: Math.floor(Math.random() * 3), age: 0 });
+      }
+      
+      meteors = meteors.filter(m => m.r < ROWS + 3);
+      meteors.forEach(m => {
+        m.age++;
+        if (m.age % 2 === 0) m.r++;
+        for (let trail = 0; trail < 4; trail++) {
+          const r = m.r - trail;
+          if (r >= 0 && r < ROWS) {
+            const alpha = 1 - trail * 0.25;
+            setStoneRingDirect(getStone(r, m.c), 'hsl(50, 100%, ' + (60 + trail * 5) + '%)', alpha * 1.5);
+          }
+        }
+      });
+      
+      GAME.effectAnimId = requestAnimationFrame(tick);
+    }
+    GAME.effectAnimId = requestAnimationFrame(tick);
+  });
+}
+
+// E5: Fire
+function fxFire(duration) {
+  duration = duration || 5000;
+  setAllRoleFx();
+  return new Promise(resolve => {
+    const effectToken = beginEffect(resolve);
+    const start = performance.now();
+    let lastTick = 0;
+    
+    function tick(now) {
+      if (!isEffectActive(effectToken)) return;
+      const t = now - start;
+      if (t > duration) { finishEffect(resolve, effectToken);
+        return; }
+      
+      if (now - lastTick > 100) {
+        lastTick = now;
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            const stone = getStone(r, c);
+            const heat = (ROWS - r) / ROWS;
+            const flicker = 0.5 + Math.random() * 0.5;
+            const intensity = heat * flicker;
+            
+            if (intensity > 0.15) {
+              let color;
+              if (intensity > 0.7) color = '#ffff66';
+              else if (intensity > 0.5) color = '#ff9933';
+              else if (intensity > 0.3) color = '#ff3300';
+              else color = '#660000';
+              setStoneRingDirect(stone, color, intensity * 1.8);
+            } else {
+              setStoneRingDirect(stone, 'rgba(40, 10, 0, 0.3)', 0.15);
+            }
+          }
+        }
+      }
+      GAME.effectAnimId = requestAnimationFrame(tick);
+    }
+    GAME.effectAnimId = requestAnimationFrame(tick);
+  });
+}
+
+// E6: Fireworks
+function fxFireworks(duration) {
+  duration = duration || 4000;
+  setAllRoleFx();
+  return new Promise(resolve => {
+    const effectToken = beginEffect(resolve);
+    const start = performance.now();
+    let lastBurst = 0;
+    let particles = [];
+    const colors = ['#ff3366', '#ffd700', '#00d4ff', '#00ff88', '#ff66cc'];
+    
+    function tick(now) {
+      if (!isEffectActive(effectToken)) return;
+      const t = now - start;
+      if (t > duration) { finishEffect(resolve, effectToken);
+        return; }
+      
+      // Dim
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          setStoneRingDirect(getStone(r, c), 'rgba(10, 10, 30, 0.2)', 0.1);
+        }
+      }
+      
+      if (now - lastBurst > 800) {
+        lastBurst = now;
+        const cr = Math.floor(Math.random() * ROWS);
+        const cc = Math.floor(Math.random() * COLS);
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        for (let dr = -2; dr <= 2; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            const dist = Math.sqrt(dr * dr + dc * dc);
+            if (dist <= 2.5 && dist > 0) {
+              particles.push({ r: cr + dr, c: cc + dc, age: 0, color: color, maxAge: 15 + Math.random() * 10 });
+            }
+          }
+        }
+        SFX.countdownFinal();
+      }
+      
+      particles = particles.filter(p => p.age < p.maxAge);
+      particles.forEach(p => {
+        p.age++;
+        if (p.r >= 0 && p.r < ROWS && p.c >= 0 && p.c < COLS) {
+          const fade = 1 - p.age / p.maxAge;
+          setStoneRingDirect(getStone(p.r, p.c), p.color, fade * 1.8);
+        }
+      });
+      
+      GAME.effectAnimId = requestAnimationFrame(tick);
+    }
+    GAME.effectAnimId = requestAnimationFrame(tick);
+  });
+}
+
+// E7: Crown
+function fxCrown(duration) {
+  duration = duration || 4000;
+  setAllRoleFx();
+  const CROWN = [
+    [1,0,1],[1,1,1],[0,1,0],[1,1,1],[1,0,1],
+    [1,1,1],[0,0,0],[0,1,0],[1,1,1],[1,1,1]
+  ];
+  
+  return new Promise(async resolve => {
+    const effectToken = beginEffect(resolve);
+    clearAllStones();
+    setAllRoleFx();
+    
+    const lightOrder = [];
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (CROWN[r][c] === 1) lightOrder.push({r: r, c: c});
+      }
+    }
+    
+    for (let i = 0; i < lightOrder.length; i++) {
+      if (!isEffectActive(effectToken)) return;
+      const p = lightOrder[i];
+      setStoneRingDirect(getStone(p.r, p.c), '#ffd700', 1.5);
+      SFX.sparkle();
+      await sleep(80);
+      if (!isEffectActive(effectToken)) return;
+    }
+    
+    const pulseStart = performance.now();
+    const remaining = Math.max(0, duration - lightOrder.length * 80);
+    
+    function pulse(now) {
+      if (!isEffectActive(effectToken)) return;
+      const t = now - pulseStart;
+      if (t > remaining) { finishEffect(resolve, effectToken);
+        return; }
+      
+      const pulseVal = 1 + Math.sin(t / 200) * 0.5;
+      lightOrder.forEach(p => {
+        setStoneRingDirect(getStone(p.r, p.c), '#ffd700', pulseVal);
+      });
+      GAME.effectAnimId = requestAnimationFrame(pulse);
+    }
+    GAME.effectAnimId = requestAnimationFrame(pulse);
+  });
+}
+
+// E8: Trophy
+function fxTrophy(duration) {
+  duration = duration || 4000;
+  setAllRoleFx();
+  const TROPHY = [
+    [1,1,1],[1,1,1],[1,1,1],[0,1,0],[0,1,0],
+    [1,1,1],[0,1,0],[0,1,0],[1,1,1],[1,1,1]
+  ];
+  
+  return new Promise(resolve => {
+    const effectToken = beginEffect(resolve);
+    clearAllStones();
+    setAllRoleFx();
+    
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (TROPHY[r][c] === 1) {
+          setStoneRingDirect(getStone(r, c), '#ffd700', 1.2);
+        }
+      }
+    }
+    SFX.victory();
+    
+    const start = performance.now();
+    function tick(now) {
+      if (!isEffectActive(effectToken)) return;
+      const t = now - start;
+      if (t > duration) { finishEffect(resolve, effectToken);
+        return; }
+      
+      const wavePos = (t / 100) % (ROWS + 3);
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (TROPHY[r][c] === 1) {
+            const distFromWave = Math.abs(r - wavePos);
+            const intensity = 1.2 + Math.max(0, 1 - distFromWave / 2) * 0.8;
+            setStoneRingDirect(getStone(r, c), '#ffd700', intensity);
+          }
+        }
+      }
+      GAME.effectAnimId = requestAnimationFrame(tick);
+    }
+    GAME.effectAnimId = requestAnimationFrame(tick);
+  });
+}
+
+// E9: Heart
+function fxHeart(duration) {
+  duration = duration || 4000;
+  setAllRoleFx();
+  const HEART = [
+    [0,0,0],[1,0,1],[1,1,1],[1,1,1],[1,1,1],
+    [0,1,0],[0,1,0],[0,1,0],[0,0,0],[0,0,0]
+  ];
+  
+  return new Promise(resolve => {
+    const effectToken = beginEffect(resolve);
+    clearAllStones();
+    setAllRoleFx();
+    const start = performance.now();
+    
+    function tick(now) {
+      if (!isEffectActive(effectToken)) return;
+      const t = now - start;
+      if (t > duration) { finishEffect(resolve, effectToken);
+        return; }
+      
+      const beat = (t % 800) / 800;
+      let intensity;
+      if (beat < 0.1) intensity = 1.8;
+      else if (beat < 0.2) intensity = 0.6;
+      else if (beat < 0.3) intensity = 1.6;
+      else intensity = 0.5 + (1 - beat) * 0.3;
+      
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const stone = getStone(r, c);
+          if (HEART[r][c] === 1) {
+            setStoneRingDirect(stone, '#ff3366', intensity);
+          } else {
+            setStoneRingDirect(stone, 'rgba(40, 0, 20, 0.2)', 0.1);
+          }
+        }
+      }
+      GAME.effectAnimId = requestAnimationFrame(tick);
+    }
+    GAME.effectAnimId = requestAnimationFrame(tick);
+  });
+}
+
+// E10: Star
+function fxStar(duration) {
+  duration = duration || 4000;
+  setAllRoleFx();
+  const STAR = [
+    [0,1,0],[1,1,1],[1,1,1],[0,1,0],[1,0,1],
+    [0,0,0],[0,1,0],[1,1,1],[0,1,0],[0,0,0]
+  ];
+  
+  return new Promise(resolve => {
+    const effectToken = beginEffect(resolve);
+    clearAllStones();
+    setAllRoleFx();
+    const start = performance.now();
+    
+    function tick(now) {
+      if (!isEffectActive(effectToken)) return;
+      const t = now - start;
+      if (t > duration) { finishEffect(resolve, effectToken);
+        return; }
+      
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const stone = getStone(r, c);
+          if (STAR[r][c] === 1) {
+            const phase = (r * 0.3 + c * 0.5 + t / 200);
+            const intensity = 1 + Math.sin(phase) * 0.6;
+            setStoneRingDirect(stone, '#ffff66', intensity);
+          } else {
+            setStoneRingDirect(stone, 'rgba(20, 20, 40, 0.2)', 0.1);
+          }
+        }
+      }
+      GAME.effectAnimId = requestAnimationFrame(tick);
+    }
+    GAME.effectAnimId = requestAnimationFrame(tick);
+  });
+}
+
+// E11: Wave
+function fxWave(duration) {
+  duration = duration || 4000;
+  setAllRoleFx();
+  return new Promise(resolve => {
+    const effectToken = beginEffect(resolve);
+    const start = performance.now();
+    
+    function tick(now) {
+      if (!isEffectActive(effectToken)) return;
+      const t = now - start;
+      if (t > duration) { finishEffect(resolve, effectToken);
+        return; }
+      
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const wave = Math.sin((r * 0.5 + c * 0.7 - t / 150)) * 0.5 + 0.5;
+          const intensity = wave * 1.5;
+          const hue = 180 + wave * 60;
+          setStoneRingDirect(getStone(r, c), 'hsl(' + hue + ', 100%, 60%)', intensity);
+        }
+      }
+      GAME.effectAnimId = requestAnimationFrame(tick);
+    }
+    GAME.effectAnimId = requestAnimationFrame(tick);
+  });
+}
+
+// E12: Rainbow
+function fxRainbow(duration) {
+  duration = duration || 5000;
+  setAllRoleFx();
+  return new Promise(resolve => {
+    const effectToken = beginEffect(resolve);
+    const start = performance.now();
+    
+    function tick(now) {
+      if (!isEffectActive(effectToken)) return;
+      const t = now - start;
+      if (t > duration) { finishEffect(resolve, effectToken);
+        return; }
+      
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const hue = (r * 30 + c * 40 + t / 20) % 360;
+          setStoneRingDirect(getStone(r, c), 'hsl(' + hue + ', 100%, 60%)', 1.3);
+        }
+      }
+      GAME.effectAnimId = requestAnimationFrame(tick);
+    }
+    GAME.effectAnimId = requestAnimationFrame(tick);
+  });
+}
+
+// E13: Chase
+function fxChase(duration) {
+  duration = duration || 5000;
+  setAllRoleFx();
+  return new Promise(resolve => {
+    const effectToken = beginEffect(resolve);
+    const start = performance.now();
+    const perimeter = [];
+    for (let c = 0; c < COLS; c++) perimeter.push({r: 0, c: c});
+    for (let r = 1; r < ROWS; r++) perimeter.push({r: r, c: COLS - 1});
+    for (let c = COLS - 2; c >= 0; c--) perimeter.push({r: ROWS - 1, c: c});
+    for (let r = ROWS - 2; r > 0; r--) perimeter.push({r: r, c: 0});
+    
+    function tick(now) {
+      if (!isEffectActive(effectToken)) return;
+      const t = now - start;
+      if (t > duration) { finishEffect(resolve, effectToken);
+        return; }
+      
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          setStoneRingDirect(getStone(r, c), 'rgba(40, 30, 60, 0.3)', 0.15);
+        }
+      }
+      
+      const pos = Math.floor(t / 80) % perimeter.length;
+      for (let i = 0; i < 6; i++) {
+        const p = perimeter[(pos - i + perimeter.length) % perimeter.length];
+        const fade = 1 - i / 6;
+        setStoneRingDirect(getStone(p.r, p.c), '#00ffff', fade * 1.8);
+      }
+      
+      GAME.effectAnimId = requestAnimationFrame(tick);
+    }
+    GAME.effectAnimId = requestAnimationFrame(tick);
+  });
+}
+
+// E14: Snake
+function fxSnake(duration) {
+  duration = duration || 5000;
+  setAllRoleFx();
+  return new Promise(resolve => {
+    const effectToken = beginEffect(resolve);
+    const start = performance.now();
+    let snake = [{r: 5, c: 1}];
+    let dir = {dr: -1, dc: 0};
+    let lastMove = 0;
+    
+    function tick(now) {
+      if (!isEffectActive(effectToken)) return;
+      const t = now - start;
+      if (t > duration) { finishEffect(resolve, effectToken);
+        return; }
+      
+      if (now - lastMove > 200) {
+        lastMove = now;
+        let head = {r: snake[0].r + dir.dr, c: snake[0].c + dir.dc};
+        if (head.r < 0 || head.r >= ROWS || head.c < 0 || head.c >= COLS) {
+          const dirs = [{dr: 1, dc: 0}, {dr: -1, dc: 0}, {dr: 0, dc: 1}, {dr: 0, dc: -1}];
+          for (let i = 0; i < dirs.length; i++) {
+            const d = dirs[i];
+            const nr = snake[0].r + d.dr;
+            const nc = snake[0].c + d.dc;
+            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+              dir = d;
+              head = {r: nr, c: nc};
+              break;
+            }
+          }
+        }
+        snake.unshift(head);
+        if (snake.length > 7) snake.pop();
+      }
+      
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          setStoneRingDirect(getStone(r, c), 'rgba(20, 40, 20, 0.2)', 0.1);
+        }
+      }
+      
+      snake.forEach((seg, idx) => {
+        const fade = 1 - idx / snake.length * 0.7;
+        if (seg.r >= 0 && seg.r < ROWS && seg.c >= 0 && seg.c < COLS) {
+          setStoneRingDirect(getStone(seg.r, seg.c), '#00ff88', fade * 1.6);
+        }
+      });
+      
+      GAME.effectAnimId = requestAnimationFrame(tick);
+    }
+    GAME.effectAnimId = requestAnimationFrame(tick);
+  });
+}
+
+// E15: Multi-color breathing
+function fxBreath(duration) {
+  duration = duration || 5000;
+  setAllRoleFx();
+  return new Promise(resolve => {
+    const effectToken = beginEffect(resolve);
+    const start = performance.now();
+    const colors = ['#00d4ff', '#ff66cc', '#00ff88', '#ffd700', '#a855f7'];
+    
+    function tick(now) {
+      if (!isEffectActive(effectToken)) return;
+      const t = now - start;
+      if (t > duration) { finishEffect(resolve, effectToken);
+        return; }
+      
+      const breath = (Math.sin(t / 500) + 1) / 2;
+      const colorIdx = Math.floor(t / 1000) % colors.length;
+      const color = colors[colorIdx];
+      
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          setStoneRingDirect(getStone(r, c), color, breath * 1.8);
+        }
+      }
+      GAME.effectAnimId = requestAnimationFrame(tick);
+    }
+    GAME.effectAnimId = requestAnimationFrame(tick);
+  });
+}
+
+// E16: Matrix
+function fxMatrix(duration) {
+  duration = duration || 5000;
+  setAllRoleFx();
+  return new Promise(resolve => {
+    const effectToken = beginEffect(resolve);
+    const start = performance.now();
+    let drops = [];
+    let lastSpawn = 0;
+    
+    function tick(now) {
+      if (!isEffectActive(effectToken)) return;
+      const t = now - start;
+      if (t > duration) { finishEffect(resolve, effectToken);
+        return; }
+      
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          setStoneRingDirect(getStone(r, c), 'rgba(0, 30, 0, 0.3)', 0.15);
+        }
+      }
+      
+      if (now - lastSpawn > 200) {
+        lastSpawn = now;
+        if (Math.random() < 0.6) {
+          drops.push({col: Math.floor(Math.random() * COLS), r: 0, age: 0});
+        }
+      }
+      
+      drops = drops.filter(d => d.r < ROWS + 5);
+      drops.forEach(d => {
+        d.age++;
+        if (d.age % 3 === 0) d.r++;
+        for (let trail = 0; trail < 5; trail++) {
+          const r = d.r - trail;
+          if (r >= 0 && r < ROWS) {
+            const fade = 1 - trail / 5;
+            const green = trail === 0 ? '#ffffff' : '#00ff44';
+            setStoneRingDirect(getStone(r, d.col), green, fade * 1.5);
+          }
+        }
+      });
+      
+      GAME.effectAnimId = requestAnimationFrame(tick);
+    }
+    GAME.effectAnimId = requestAnimationFrame(tick);
+  });
+}
+
+// Effect dispatcher
+async function demoEffect(name) {
+  if (GAME.phase === 'playing' || GAME.phase === 'countdown' || GAME.phase === 'chaos' || GAME.phase === 'result') return;
+  const flowId = newFlow();
+  stopOngoingEffect();
+  clearAllStones();
+  setPhase('特效:' + name);
+  btnStart.disabled = true;
+  btnReset.disabled = true;
+  
+  const effects = {
+    chaos: fxChaos, whirlpool: fxWhirlpool, lightning: fxLightning,
+    meteor: fxMeteor, fire: fxFire, fireworks: fxFireworks,
+    crown: fxCrown, trophy: fxTrophy, heart: fxHeart, star: fxStar,
+    wave: fxWave, rainbow: fxRainbow, chase: fxChase, snake: fxSnake,
+    breath: fxBreath, matrix: fxMatrix
+  };
+  
+  if (effects[name]) {
+    await effects[name](5000);
+  }
+  if (!isCurrentFlow(flowId)) return;
+  setPhase('idle');
+  hideOverlay();
+  clearAllStones();
+  btnStart.disabled = false;
+  btnReset.disabled = true;
+}
+
+// ============================================================
+// Game flow
+// ============================================================
+function setPhase(p) {
+  GAME.phase = p;
+  const labels = { 
+    idle: '待機', countdown: '倒數', chaos: '特效展示', 
+    preview: '預覽', playing: '挑戰中', result: '結束' 
+  };
+  stateDisplay.textContent = labels[p] || p;
+}
+
+async function startGame() {
+  const flowId = newFlow();
+  ensureAC();
+  if ('speechSynthesis' in window) {
+    try {
+      const test = new SpeechSynthesisUtterance(' ');
+      test.volume = 0;
+      window.speechSynthesis.speak(test);
+    } catch (e) { /* ignore */ }
+  }
+  
+  btnStart.disabled = true;
+  btnReset.disabled = true;
+  stopOngoingEffect();
+  clearInterval(GAME.timer);
+  GAME.timer = null;
+
+  GAME.steppedSet.clear();
+  GAME.redHits.clear();
+  GAME.errorCount = 0;
+  GAME.timeLeft = TOTAL_TIME;
+  GAME.lastProgressHintAt = 0;
+  errorDisplay.textContent = '0';
+  errorDisplay.classList.remove('warn', 'crit');
+  timeDisplay.classList.remove('warn', 'crit');
+  updateTimeDisplay();
+  
+  generatePath();
+  updatePathInfo();
+  progressDisplay.textContent = '0/' + GAME.path.length;
+  clearAllStones();
+
+  setPhase('countdown');
+  speak('歡迎來到穿越跳石陣！');
+  if (!await waitForFlow(2200, flowId)) return;
+
+  // Countdown 5..1
+  for (let i = 5; i >= 1; i--) {
+    if (!isCurrentFlow(flowId)) return;
+    drawCountdownDigit(String(i));
+    SFX.countdownBeep();
+    speak(String(i), { rate: 1.3, interrupt: true });
+    if (!await waitForFlow(900, flowId)) return;
+  }
+  
+  // After countdown, announce the selected route and start immediately.
+  if (!isCurrentFlow(flowId)) return;
+  clearAllStones();
+  updatePathInfo();
+  paintPath();
+  SFX.countdownFinal();
+
+  setPhase('playing');
+  GAME.startedAt = Date.now();
+  GAME.timer = setInterval(() => tickTimer(flowId), 1000);
+  btnReset.disabled = false;
+
+  showOverlay('本回合：' + GAME.theme.name);
+  speak(GAME.theme.voice + ' 遊戲開始！', { rate: 1.25 });
+  if (!await waitForFlow(900, flowId)) return;
+  hideOverlay();
+}
+
+function tickTimer(flowId) {
+  if (flowId && !isCurrentFlow(flowId)) {
+    clearInterval(GAME.timer);
+    GAME.timer = null;
+    return;
+  }
+  GAME.timeLeft--;
+  updateTimeDisplay();
+  const elapsed = TOTAL_TIME - GAME.timeLeft;
+
+  maybeShowProgressHint(elapsed, flowId);
+
+  if (elapsed === WARN_30_AT) {
+    timeDisplay.classList.add('warn');
+  }
+  if (elapsed === WARN_10_AT) {
+    timeDisplay.classList.remove('warn');
+    timeDisplay.classList.add('crit');
+  }
+  if (GAME.timeLeft <= 10 && GAME.timeLeft > 0) SFX.warn10();
+  
+  if (GAME.timeLeft <= 0) {
+    clearInterval(GAME.timer);
+    endGame('timeup', flowId);
+  }
+}
+
+function getRemainingBlueCount() {
+  return Math.max(0, GAME.path.length - GAME.steppedSet.size);
+}
+
+function maybeShowProgressHint(elapsed, flowId) {
+  if (GAME.phase !== 'playing') return;
+  if (GAME.timeLeft <= 0) return;
+  if (elapsed <= 0 || elapsed % PROGRESS_HINT_INTERVAL !== 0) return;
+  if (GAME.lastProgressHintAt === elapsed) return;
+  if (!isCurrentFlow(flowId)) return;
+
+  GAME.lastProgressHintAt = elapsed;
+  const remainingBlue = getRemainingBlueCount();
+  let msg = '你還剩 ' + GAME.timeLeft + ' 秒，你還有 ' + remainingBlue + ' 個藍色跳石還沒踩到，請加油！';
+  if (GAME.timeLeft <= 10) {
+    msg = '最後 ' + GAME.timeLeft + ' 秒，你還有 ' + remainingBlue + ' 個藍色跳石還沒踩到，請加油！';
+  }
+
+  showVoice(msg, 3600);
+  speak(msg, { rate: GAME.timeLeft <= 10 ? 1.25 : 1.15, interrupt: true });
+}
+
+function updateTimeDisplay() {
+  const m = Math.floor(GAME.timeLeft / 60);
+  const s = GAME.timeLeft % 60;
+  timeDisplay.textContent = m + ':' + (s < 10 ? '0' + s : s);
+}
+
+// ============================================================
+// Click handler
+// ============================================================
+function onStoneClick(e) {
+  if (GAME.phase !== 'playing') return;
+  const stone = e.currentTarget;
+  const r = parseInt(stone.dataset.r);
+  const c = parseInt(stone.dataset.c);
+  const key = r + ',' + c;
+  
+  if (GAME.pathSet.has(key)) {
+    if (GAME.steppedSet.has(key)) return;
+    GAME.steppedSet.add(key);
+    
+    // Change role to gold (breathing loop will animate it)
+    setStoneRole(stone, 'gold');
+    
+    // Trigger pop animation
+    stone.classList.remove('pop');
+    void stone.offsetWidth;
+    stone.classList.add('pop');
+    
+    SFX.stepCorrect();
+    progressDisplay.textContent = GAME.steppedSet.size + '/' + GAME.path.length;
+    
+    if (GAME.steppedSet.size === GAME.path.length) {
+      clearInterval(GAME.timer);
+      endGame('victory', GAME.flowId);
+    }
+  } else {
+    GAME.errorCount++;
+    errorDisplay.textContent = GAME.errorCount;
+    if (GAME.errorCount >= 3) {
+      errorDisplay.classList.remove('warn');
+      errorDisplay.classList.add('crit');
+    } else if (GAME.errorCount >= 1) {
+      errorDisplay.classList.add('warn');
+    }
+    
+    if (!GAME.redHits.has(key)) {
+      GAME.redHits.add(key);
+      setStoneRole(stone, 'hit-red');
+    }
+    SFX.stepWrong();
+    speak('你已經踩錯了 ' + GAME.errorCount + ' 個紅色的跳石！', { interrupt: true, rate: 1.2 });
+  }
+}
+
+// ============================================================
+// End Game
+// ============================================================
+async function endGame(reason, flowId) {
+  flowId = flowId || GAME.flowId;
+  if (!isCurrentFlow(flowId)) return;
+  setPhase('result');
+  clearInterval(GAME.timer);
+  GAME.timer = null;
+  btnStart.disabled = true;
+  btnReset.disabled = true;
+  
+  const elapsed = TOTAL_TIME - GAME.timeLeft;
+  const m = Math.floor(elapsed / 60);
+  const s = elapsed % 60;
+  
+  let title, subtitle, trophy, badge, voiceMsg, endAnim;
+  
+  if (reason === 'victory') {
+    SFX.victory();
+    
+    if (GAME.errorCount === 0) {
+      title = '完美通關！';
+      subtitle = '零失誤！你是頂尖的探險家！';
+      trophy = '🏆';
+      badge = '完美探險家';
+      voiceMsg = '恭喜你闖關成功，你是完美的探險家！';
+      endAnim = 'crown';
+    } else if (GAME.errorCount <= 2) {
+      title = '挑戰成功！';
+      subtitle = '踩錯 ' + GAME.errorCount + ' 次，還是過關了！';
+      trophy = '🌟';
+      badge = '勇敢挑戰者';
+      voiceMsg = '恭喜你闖關成功，你是勇敢的挑戰者！';
+      endAnim = 'trophy';
+    } else {
+      title = '艱辛過關！';
+      subtitle = '踩錯 ' + GAME.errorCount + ' 次，不放棄的精神！';
+      trophy = '💪';
+      badge = '不放棄的小英雄';
+      voiceMsg = '恭喜你闖關成功，你是不放棄的小英雄！';
+      endAnim = 'star';
+    }
+  } else {
+    SFX.timeUp();
+    setTimeout(() => { if (isCurrentFlow(flowId)) SFX.failure(); }, 800);
+    title = '時間到！';
+    subtitle = '踩錯 ' + GAME.errorCount + ' 次，再試一次！';
+    trophy = '⏰';
+    badge = '時間挑戰者';
+    voiceMsg = '時間到！這次踩錯了 ' + GAME.errorCount + ' 次，下次再來挑戰！';
+    endAnim = 'heart';
+  }
+  
+  speak(voiceMsg, { rate: 1.2, interrupt: true });
+  
+  // Play victory animation on the grid
+  if (reason === 'victory') {
+    await fxFireworks(2500);
+    if (!isCurrentFlow(flowId)) return;
+    if (endAnim === 'crown') await fxCrown(3500);
+    else if (endAnim === 'trophy') await fxTrophy(3500);
+    else if (endAnim === 'star') await fxStar(3500);
+  } else {
+    await fxHeart(3000);
+  }
+  if (!isCurrentFlow(flowId)) return;
+  
+  document.getElementById('modalTrophy').textContent = trophy;
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalSubtitle').textContent = subtitle;
+  document.getElementById('statPath').textContent = GAME.path.length + ' 顆';
+  document.getElementById('statStepped').textContent = GAME.steppedSet.size + ' 顆';
+  document.getElementById('statErrors').textContent = GAME.errorCount + ' 次';
+  document.getElementById('statTime').textContent = m + ':' + (s < 10 ? '0' + s : s);
+  document.getElementById('statTitle').textContent = badge;
+  
+  document.getElementById('modalBg').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalBg').classList.remove('show');
+  stopOngoingEffect();
+  setPhase('idle');
+  clearAllStones();
+  pathName.textContent = '— 待開始 —';
+  pathDesc.textContent = '點擊開始遊戲';
+  progressDisplay.textContent = '0/0';
+  errorDisplay.textContent = '0';
+  errorDisplay.classList.remove('warn', 'crit');
+  timeDisplay.classList.remove('warn', 'crit');
+  GAME.timeLeft = TOTAL_TIME;
+  GAME.lastProgressHintAt = 0;
+  updateTimeDisplay();
+  btnStart.disabled = false;
+  btnReset.disabled = true;
+  setSubtitle('準備開始下一回合...', false);
+}
+
+function resetGame() {
+  newFlow();
+  clearInterval(GAME.timer);
+  GAME.timer = null;
+  stopOngoingEffect();
+  hideOverlay();
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  closeModal();
+}
+
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+// ============================================================
+// Init
+// ============================================================
+buildGrid();
+updateTimeDisplay();
+btnStart.addEventListener('click', startGame);
+btnReset.addEventListener('click', resetGame);
+startBreathingLoop();
+
+</script>
+</body>
+</html>
