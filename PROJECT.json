@@ -1,0 +1,37 @@
+{
+  "project_id": "P009",
+  "github_repository_id": 1240264625,
+  "title_en": "Jumpstone Lighting",
+  "title_zh": "穿越跳石陣・環形燈條模式",
+  "category": "install",
+  "topics": [
+    "footpad",
+    "led",
+    "simulation"
+  ],
+  "repository_full_name": "jackeytw886/Champagne",
+  "repository_url": "https://github.com/jackeytw886/Champagne",
+  "default_branch": "main",
+  "visibility": "public",
+  "aliases": [],
+  "suggested_name": "install-jumpstone",
+  "repository_status": "connected",
+  "content_state": "source-present",
+  "lifecycle": "unknown",
+  "pages_enabled": true,
+  "deployment_url": "https://jackeytw886.github.io/Champagne",
+  "event_year": null,
+  "entry_paths": [
+    "index.html"
+  ],
+  "related_project_ids": [
+    "P010",
+    "P026"
+  ],
+  "handoff_path": "HANDOFF.md",
+  "verification_source": "github-tree-and-readme",
+  "verified_at": "2026-10-17T20:41:56+08:00",
+  "source_baseline_sha": "da5f8e9a457fabc9d609ab3cea99b6c4cafff51b",
+  "last_runtime_verified_sha": null,
+  "naming_status": "preserved-for-pages"
+}
